@@ -106,7 +106,7 @@ mocha.describe('readings API', () => {
 					const res = await chai.request(app).get(`/api/compareReadings/meters/${METER_ID}`)
 						.query({
 							curr_start: '2022-10-09 00:00:00',
-							curr_end: '2022-10-31 17:12:34', 
+							curr_end: '2022-10-31 17:12:34',
 							shift: 'P28D',
 							graphicUnitId: unitId
 						});
@@ -163,6 +163,120 @@ mocha.describe('readings API', () => {
 				// Add C12 here
 
 				// Add C13 here
+				mocha.it('C13: 1 day shift end 2022-10-31 17:00:00 for 15 minute reading intervals and quantity units & kWh as metric ton of CO2 & chained', async () =>{
+					// needs units of u2, u10, u11, and u12
+					const unitData = [
+						{
+							//u2
+							name: 'Electric_Utility',
+							identifier: '',
+							unitRepresent: Unit.unitRepresentType.QUANTITY,
+							secInRate: 3600,
+							typeOfUnit: Unit.unitType.METER,
+							suffix: '',
+							displayable: Unit.displayableType.NONE,
+							preferredDisplay: false,
+							note: 'special unit'
+						},
+						{
+							// u10
+							name: 'kg',
+							identifier: '',
+							unitRepresent: Unit.unitRepresentType.QUANTITY,
+							secInRate: 3600,
+							typeOfUnit: Unit.unitType.UNIT,
+							suffix: '',
+							displayable: Unit.displayableType.ALL,
+							preferredDisplay: false,
+							note: 'OED created standard unit'
+						},
+						{
+							// u11
+							name: 'metric ton',
+							identifier: '',
+							unitRepresent: Unit.unitRepresentType.QUANTITY,
+							secInRate: 3600,
+							typeOfUnit: Unit.unitType.UNIT,
+							suffix: '',
+							displayable: Unit.displayableType.ALL,
+							preferredDisplay: false,
+							note: 'OED created standard unit'
+						},
+						{
+							// u12
+							name: 'kg CO₂',
+							identifier: '',
+							unitRepresent: Unit.unitRepresentType.QUANTITY,
+							secInRate: 3600,
+							typeOfUnit: Unit.unitType.UNIT,
+							suffix: 'CO₂',
+							displayable: Unit.displayableType.ALL,
+							preferredDisplay: false,
+							note: 'special unit'
+						}
+					];
+
+					//needs conversions of c11, c12 and c13
+					const conversionData = [
+						{
+							// c11
+							sourceName: 'Electric_Utility',
+							destinationName: 'kg CO₂',
+							bidirectional: false,
+							slope: 0.709,
+							intercept: 0,
+							note: 'Electric_Utility → kg CO₂'
+						},
+						{
+							// c12
+							sourceName: 'kg CO₂',
+							destinationName: 'kg',
+							bidirectional: false,
+							slope: 1,
+							intercept: 0,
+							note: 'CO₂ → kg'
+						},
+						{
+							// c13
+							sourceName: 'kg',
+							destinationName: 'metric ton',
+							bidirectional: true,
+							slope: 1e-3,
+							intercept: 0,
+							note: 'kg → Metric ton'
+						}
+					];
+
+					//redefining meterData for units of metric tons
+					const meterData = [
+						{
+							name: 'Electric Utility metric tons of CO₂',
+							unit: 'Electric_Utility',
+							displayable: true,
+							gps: undefined,
+							note: 'special meter',
+							file: 'test/web/readingsData/readings_ri_15_days_75.csv',
+							deleteFile: false,
+							readingFrequency: '15 minutes',
+							id: METER_ID
+						}
+					];
+
+					//load data in database for testing
+					await prepareTest(unitData, conversionData, meterData);
+					//get unitId for metric tons to ensure it is used
+					const unitId = await getUnitId('metric ton of CO₂');
+					const expected = [2.21209301271706, 2.38755850602232];
+					//for comparison, the unitId, curr_start, curr_end, and shift is needed
+					const res = await chai.request(app).get(`/api/compareReadings/meters/${METER_ID}`)
+						.query({
+							curr_start: '2022-10-31 00:00:00',
+							curr_end: '2022-10-31 17:00:00',
+							shift: 'P1D',
+							graphicUnitId: unitId
+						});
+					expectCompareToEqualExpected(res, expected);
+				});
 
 				mocha.it('C14: 1 day shift end 2022-10-31 17:00:00 for 15 minute reading intervals and quantity units & kWh as lbs of CO2 & chained & reversed', async () => {
 					const unitData = [
